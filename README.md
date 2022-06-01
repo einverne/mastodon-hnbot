@@ -6,12 +6,22 @@ https://hackertribe.io/@HackerNewsBot
 
 # Usage
 
-Create an account for the bot. For convenience you can use youremail+hnbot@gmail.com, to avoid registering a separate email.
+Create an account for the bot. For convenience, you can use youremail+hnbot@gmail.com, to avoid registering a separate email.
+
+Create config.ini with the following content:
+
+```
+[mastodon]
+url = https://instance.url
+points = 100
+email = 
+password = 
+```
 
 Then run the command:
 
 ```
-python3 ./hnbot.py "youremail@example.com" "yourpassword" "https://instancename.com"
+python3 hnbot.py
 ```
 
 # Run it regularly
@@ -27,7 +37,7 @@ crontab -e
 And at the end of the file add the line:
 
 ```
-0,30 * * * * python3 /path/to/the/script/hnbot.py "youremail@gmail.com" "yourpassword" "https://instancename.com"
+0,30 * * * * python3 /path/to/the/script/hnbot.py
 ```
 
 (this will execute every 30 minutes)
