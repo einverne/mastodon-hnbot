@@ -1,7 +1,6 @@
 hnbot_*
 seen.db
 posts.db
-*.txt
 *.log
 *.ini
 *.idea/*
