@@ -5,10 +5,13 @@ from configparser import ConfigParser
 import feedparser
 from mastodon import Mastodon
 
-HNBOT_USERCRED_TXT = "hnbot_usercred.txt"
 HACKER_NEWS_BOT = 'HackerNewsBot'
-HNBOT_CLIENTCRED_TXT = 'hnbot_clientcred.txt'
-POST_DB = 'posts.db'
+
+# Every setting can come from an environment variable; config.ini is only a fallback.
+HNBOT_USERCRED_TXT = os.getenv('HNBOT_USERCRED_TXT', 'hnbot_usercred.txt')
+HNBOT_CLIENTCRED_TXT = os.getenv('HNBOT_CLIENTCRED_TXT', 'hnbot_clientcred.txt')
+POST_DB = os.getenv('HNBOT_POST_DB', 'posts.db')
+CONFIG_INI = os.getenv('HNBOT_CONFIG', 'config.ini')
 
 
 class SQLiteDB:
@@ -45,19 +48,43 @@ class SQLiteDB:
             return False
 
 
-def main():
-    cfg = ConfigParser()
-    cfg.read('config.ini')
-    db = SQLiteDB()
-    url = "https://hnrss.org/newest?points=" + cfg.get('mastodon', 'points')
-    feed = feedparser.parse(url)
-    stories = feed["entries"]
-    # Make the list of stories who's id isn't in the seen list
-    unseen_stories = [story for story in stories if not db.exist(story["id"])]
-    if len(unseen_stories) <= 0:
-        return
+class Settings:
 
-    instance_url = cfg.get('mastodon', 'url')
+    def __init__(self) -> None:
+        self.cfg = ConfigParser()
+        self.cfg.read(CONFIG_INI)
+
+    def get(self, env_name, option, default=None):
+        value = os.getenv(env_name)
+        if value:
+            return value
+        return self.cfg.get('mastodon', option, fallback=default)
+
+    def require(self, env_name, option):
+        value = self.get(env_name, option)
+        if not value:
+            raise SystemExit("Missing setting: set %s or [mastodon] %s in %s"
+                             % (env_name, option, CONFIG_INI))
+        return value
+
+
+def login(settings, instance_url):
+    access_token = settings.get('MASTODON_ACCESS_TOKEN', 'access_token')
+    if access_token:
+        return Mastodon(access_token=access_token, api_base_url=instance_url)
+
+    client_id = settings.get('MASTODON_CLIENT_ID', 'client_id')
+    client_secret = settings.get('MASTODON_CLIENT_SECRET', 'client_secret')
+    if client_id and client_secret:
+        # Credentials passed directly: log in without touching any file
+        mastodon = Mastodon(
+            client_id=client_id,
+            client_secret=client_secret,
+            api_base_url=instance_url
+        )
+        mastodon.log_in(settings.require('MASTODON_EMAIL', 'email'),
+                        settings.require('MASTODON_PASSWORD', 'password'))
+        return mastodon
 
     # Create app if doesn't exist
     if not os.path.isfile(HNBOT_CLIENTCRED_TXT):
@@ -75,16 +102,32 @@ def main():
             client_id=HNBOT_CLIENTCRED_TXT,
             api_base_url=instance_url
         )
-        email = cfg.get('mastodon', 'email')
-        password = cfg.get('mastodon', 'password')
+        email = settings.require('MASTODON_EMAIL', 'email')
+        password = settings.require('MASTODON_PASSWORD', 'password')
         mastodon.log_in(email, password, to_file=HNBOT_USERCRED_TXT)
 
     # Login using generated auth
-    mastodon = Mastodon(
+    return Mastodon(
         client_id=HNBOT_CLIENTCRED_TXT,
         access_token=HNBOT_USERCRED_TXT,
         api_base_url=instance_url
     )
+
+
+def main():
+    settings = Settings()
+    db = SQLiteDB()
+    points = settings.get('HN_POINTS', 'points', '100')
+    url = "https://hnrss.org/newest?points=" + points
+    feed = feedparser.parse(url)
+    stories = feed["entries"]
+    # Make the list of stories who's id isn't in the seen list
+    unseen_stories = [story for story in stories if not db.exist(story["id"])]
+    if len(unseen_stories) <= 0:
+        return
+
+    instance_url = settings.require('MASTODON_URL', 'url')
+    mastodon = login(settings, instance_url)
     for story in unseen_stories:
         title = story["title"]
         storyid = story["id"]
