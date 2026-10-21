@@ -75,24 +75,31 @@ def login(settings, instance_url):
 
     client_id = settings.get('MASTODON_CLIENT_ID', 'client_id')
     client_secret = settings.get('MASTODON_CLIENT_SECRET', 'client_secret')
-    if not (client_id and client_secret):
-        # Create app if doesn't exist
-        if not os.path.isfile(HNBOT_CLIENTCRED_TXT):
-            print("Creating app")
-            Mastodon.create_app(
-                HACKER_NEWS_BOT,
-                to_file=HNBOT_CLIENTCRED_TXT,
-                api_base_url=instance_url
-            )
-        client_id = HNBOT_CLIENTCRED_TXT
-        client_secret = None
+    if client_id and client_secret:
+        # Credentials passed directly: log in without touching any file
+        mastodon = Mastodon(
+            client_id=client_id,
+            client_secret=client_secret,
+            api_base_url=instance_url
+        )
+        mastodon.log_in(settings.require('MASTODON_EMAIL', 'email'),
+                        settings.require('MASTODON_PASSWORD', 'password'))
+        return mastodon
+
+    # Create app if doesn't exist
+    if not os.path.isfile(HNBOT_CLIENTCRED_TXT):
+        print("Creating app")
+        Mastodon.create_app(
+            HACKER_NEWS_BOT,
+            to_file=HNBOT_CLIENTCRED_TXT,
+            api_base_url=instance_url
+        )
 
     # Fetch access token if I didn't already
     if not os.path.isfile(HNBOT_USERCRED_TXT):
         print("Logging in")
         mastodon = Mastodon(
-            client_id=client_id,
-            client_secret=client_secret,
+            client_id=HNBOT_CLIENTCRED_TXT,
             api_base_url=instance_url
         )
         email = settings.require('MASTODON_EMAIL', 'email')
@@ -101,8 +108,7 @@ def login(settings, instance_url):
 
     # Login using generated auth
     return Mastodon(
-        client_id=client_id,
-        client_secret=client_secret,
+        client_id=HNBOT_CLIENTCRED_TXT,
         access_token=HNBOT_USERCRED_TXT,
         api_base_url=instance_url
     )

@@ -5,3 +5,4 @@ posts.db
 *.ini
 *.idea/*
 *.python-version
+__pycache__/

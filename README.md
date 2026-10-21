@@ -34,8 +34,8 @@ panels such as daidai-panel, Docker or CI. Environment variables take precedence
 | --- | --- | --- |
 | `MASTODON_URL` | `url` | Instance URL, e.g. `https://mastodon.social` (required) |
 | `MASTODON_ACCESS_TOKEN` | `access_token` | Access token of the bot account. Recommended: when set, no credential files are created or needed |
-| `MASTODON_CLIENT_ID` | `client_id` | Client key of an existing app (optional, used with email/password login) |
-| `MASTODON_CLIENT_SECRET` | `client_secret` | Client secret of an existing app (optional) |
+| `MASTODON_CLIENT_ID` | `client_id` | Client key of an existing app. With `MASTODON_CLIENT_SECRET`, `MASTODON_EMAIL` and `MASTODON_PASSWORD` the bot logs in without any credential file |
+| `MASTODON_CLIENT_SECRET` | `client_secret` | Client secret of an existing app |
 | `MASTODON_EMAIL` | `email` | Login email, only used when no access token is set |
 | `MASTODON_PASSWORD` | `password` | Login password, only used when no access token is set |
 | `HN_POINTS` | `points` | Minimum points of a story (default `100`) |
@@ -46,6 +46,13 @@ panels such as daidai-panel, Docker or CI. Environment variables take precedence
 
 To get an access token, open *Preferences → Development → New application* on
 your instance, give it the `write:statuses` scope, and copy "Your access token".
+
+If you already have `hnbot_clientcred.txt`, its first line is the client id and its
+second line is the client secret, so you can move them into `MASTODON_CLIENT_ID` and
+`MASTODON_CLIENT_SECRET`.
+
+Login order: `MASTODON_ACCESS_TOKEN` first, then client id/secret with email/password,
+and finally the legacy credential files.
 
 Point `HNBOT_POST_DB` to a persistent location, otherwise the bot forgets what it
 has already posted and will toot the same stories again.
